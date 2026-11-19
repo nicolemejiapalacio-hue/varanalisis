@@ -1,6 +1,6 @@
 import pandas as pd
 import streamlit as st
-
+from influx_loader import cargar_desde_influx
 # ============================================================
 #  Configuración de la página
 # ============================================================
@@ -85,28 +85,24 @@ st.map(eafit_location, zoom=15)
 # ============================================================
 #  Carga del archivo
 # ============================================================
-uploaded_file = st.file_uploader("Seleccione archivo CSV", type=["csv"])
+fuente = st.radio("Fuente de datos", ["InfluxDB (en vivo)", "Archivo CSV"], horizontal=True)
+df_original = None
 
-if uploaded_file is not None:
-    try:
+if fuente == "InfluxDB (en vivo)":
+    horas = st.slider("Últimas N horas", 1, 72, 1)
+    df_original = cargar_desde_influx(horas)
+    if df_original.empty:
+        st.warning("No hay datos en ese rango. ¿El ESP32 está enviando?")
+        df_original = None
+else:
+    uploaded_file = st.file_uploader("Seleccione archivo CSV", type=["csv"])
+    if uploaded_file is not None:
         df_original = pd.read_csv(uploaded_file)
+
+if df_original is not None:
+    try:
         df1, variables, col_tiempo = preparar_datos(df_original)
-
-        if not variables:
-            st.error("No se encontraron columnas numéricas en el archivo.")
-            st.stop()
-
-        st.success(
-            f"Se detectaron **{len(variables)}** variable(s) numérica(s): "
-            + ", ".join(f"`{v}`" for v in variables)
-        )
-        if col_tiempo is None:
-            st.info("No se encontró columna de tiempo; se usará el número de registro como eje X.")
-
-        tab1, tab2, tab3, tab4 = st.tabs(
-            ["📈 Visualización", "📊 Estadísticas", "🔍 Filtros", "🗺️ Información del Sitio"]
-        )
-
+        # ... el resto sigue igual
         # ----------------------------------------------------
         #  TAB 1 · Visualización
         # ----------------------------------------------------
